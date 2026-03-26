@@ -6,7 +6,7 @@ function App() {
 
   const sendCommand = async (state) => {
     try {
-      const res = await fetch("https://your-backend.onrender.com/update", {
+      const res = await fetch("https://trial-web-b6x1.onrender.com/update", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
