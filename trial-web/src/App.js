@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const BASE = "https://your-backend.onrender.com";
+const BASE = "https://trial-web-1.onrender.com";
 
 function App() {
   const [online, setOnline] = useState(false);
