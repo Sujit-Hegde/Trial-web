@@ -50,7 +50,6 @@ app.post("/motor", (req, res) => {
 // -----------------------------
 app.post("/reset", (req, res) => {
   state.servo = "STOP";
-  state.motor = "STOP";
   res.json({ message: "Reset done" });
 });
 
