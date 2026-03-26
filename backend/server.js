@@ -5,21 +5,62 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-let state = { led: "OFF" };
+// GLOBAL STATE
+let state = {
+  power: "OFF",
+  servo: "STOP",
+  motor: "STOP",
+  lastSeen: Date.now()
+};
 
-// Update state from frontend
-app.post("/update", (req, res) => {
-  state = req.body;
-  console.log("Updated state:", state);
-  res.json({ message: "State updated" });
-});
-
-// Send state to Pico W
+// -----------------------------
+// PICO FETCH STATE
+// -----------------------------
 app.get("/state", (req, res) => {
+  state.lastSeen = Date.now();
   res.json(state);
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// -----------------------------
+// POWER CONTROL
+// -----------------------------
+app.post("/power", (req, res) => {
+  state.power = req.body.power; // ON / OFF
+  res.json({ message: "Power updated" });
 });
+
+// -----------------------------
+// SERVO CONTROL
+// -----------------------------
+app.post("/servo", (req, res) => {
+  state.servo = "FOLD";
+  res.json({ message: "Servo triggered" });
+});
+
+// -----------------------------
+// MOTOR CONTROL
+// -----------------------------
+app.post("/motor", (req, res) => {
+  state.motor = req.body.speed; // slow/medium/fast
+  res.json({ message: "Motor updated" });
+});
+
+// -----------------------------
+// RESET COMMANDS (PICO USE)
+// -----------------------------
+app.post("/reset", (req, res) => {
+  state.servo = "STOP";
+  state.motor = "STOP";
+  res.json({ message: "Reset done" });
+});
+
+// -----------------------------
+// STATUS FOR FRONTEND
+// -----------------------------
+app.get("/status", (req, res) => {
+  const now = Date.now();
+  const online = now - state.lastSeen < 5000;
+  res.json({ online });
+});
+
+app.listen(3000, () => console.log("Server running"));
