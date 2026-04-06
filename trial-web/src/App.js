@@ -110,12 +110,6 @@ function App() {
             >
               Medium
             </button>
-            <button
-              onClick={() => setMotor("fast")}
-              className={motorSpeed === "fast" ? "active" : ""}
-            >
-              Fast
-            </button>
           </div>
         </div>
       </div>

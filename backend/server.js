@@ -41,8 +41,13 @@ app.post("/servo", (req, res) => {
 // MOTOR CONTROL
 // -----------------------------
 app.post("/motor", (req, res) => {
-  state.motor = req.body.speed; // slow/medium/fast
-  res.json({ message: "Motor updated" });
+  const { speed } = req.body;
+  if (["slow", "medium"].includes(speed)) {
+    state.motor = speed; // slow/medium
+    res.json({ message: "Motor updated" });
+  } else {
+    res.status(400).json({ message: "Invalid speed" });
+  }
 });
 
 // -----------------------------
