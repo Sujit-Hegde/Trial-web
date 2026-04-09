@@ -5,11 +5,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("Backend is running");
+});
+
 // GLOBAL STATE
 let state = {
   power: "OFF",
   servo: "STOP",
-  motor: "STOP",
+  motor: { power: "OFF", holdTime: 0 },
   lastSeen: Date.now()
 };
 
@@ -41,12 +45,12 @@ app.post("/servo", (req, res) => {
 // MOTOR CONTROL
 // -----------------------------
 app.post("/motor", (req, res) => {
-  const { speed } = req.body;
-  if (["slow", "medium"].includes(speed)) {
-    state.motor = speed; // slow/medium
+  const { power, holdTime } = req.body;
+  if (["ON", "OFF"].includes(power)) {
+    state.motor = { power, holdTime: parseInt(holdTime) };
     res.json({ message: "Motor updated" });
   } else {
-    res.status(400).json({ message: "Invalid speed" });
+    res.status(400).json({ message: "Invalid power state" });
   }
 });
 
