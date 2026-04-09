@@ -37,8 +37,13 @@ app.post("/power", (req, res) => {
 // SERVO CONTROL
 // -----------------------------
 app.post("/servo", (req, res) => {
-  state.servo = "FOLD";
-  res.json({ message: "Servo triggered" });
+  const { state: servoState } = req.body;
+  if (["FOLD", "UNFOLD"].includes(servoState)) {
+    state.servo = servoState;
+    res.json({ message: `Servo state updated to ${servoState}` });
+  } else {
+    res.status(400).json({ message: "Invalid servo state" });
+  }
 });
 
 // -----------------------------

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const BASE = "https://trial-web-1.onrender.com";
+const BASE ="https://trial-web-1.onrender.com" ;
 
 function App() {
   const [online, setOnline] = useState(false);
@@ -16,13 +16,20 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(BASE + "/status");
+        const res = await fetch(BASE + "/state");
         const data = await res.json();
-        setOnline(data.online);
-        // setPower(data.power); // Temporarily disabled to prevent overwriting optimistic UI
-        // setMotorSpeed(data.motorSpeed); // Temporarily disabled to prevent overwriting optimistic UI
+        const now = Date.now();
+        const isOnline = now - data.lastSeen < 5000;
+        setOnline(isOnline);
+
+        if (isOnline) {
+          setPower(data.power);
+          setMotorSpeed(data.motor.power);
+          // Do not overwrite servoStatus here; it is controlled
+          // only by the FOLD / RESET buttons in the UI.
+        }
       } catch (error) {
-        console.error("Error fetching status:", error);
+        console.error("Error fetching state:", error);
         setOnline(false);
       }
     }, 2000);
@@ -41,13 +48,20 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
 
   const foldServo = () => {
     setServoStatus("Folded");
-    fetch(BASE + "/servo", { method: "POST" });
+    fetch(BASE + "/servo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state: "FOLD" }),
+    });
   };
 
   const resetServo = () => {
     setServoStatus("Unfolded");
-    // Optionally, you can send a request to the backend to unfold the servo
-    // fetch(BASE + "/servo-unfold", { method: "POST" });
+    fetch(BASE + "/servo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state: "UNFOLD" }),
+    });
   };
 
   const sendMotorState = (power) => {
