@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const BASE = "http://localhost:3000";
+const BASE = "https://trial-web-1.onrender.com";
 
 function App() {
   const [online, setOnline] = useState(false);
