@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const BASE = "https://trial-web-1.onrender.com";
+const BASE = "http://localhost:3000";
 
 function App() {
   const [online, setOnline] = useState(false);
   const [power, setPower] = useState(null);
   const [motorSpeed, setMotorSpeed] = useState(null);
   const [servoStatus, setServoStatus] = useState("Unfolded");
+
+const [holdTime, setHoldTime] = useState("");
+const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
 
   // CHECK STATUS
   useEffect(() => {
@@ -47,13 +50,26 @@ function App() {
     // fetch(BASE + "/servo-unfold", { method: "POST" });
   };
 
-  const setMotor = (speed) => {
-    setMotorSpeed(speed);
+  const sendMotorState = (power) => {
+    if (power === "ON" && submittedHoldTime === null) {
+      alert("Please enter and submit a hold time first.");
+      return;
+    }
+    setMotorSpeed(power);
     fetch(BASE + "/motor", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ speed }),
+      body: JSON.stringify({ power, holdTime: submittedHoldTime }),
     });
+  };
+
+  const handleHoldTimeSubmit = () => {
+    if (holdTime === "" || holdTime < 0 || holdTime > 9) {
+      alert("Please enter a valid hold time between 0 and 9.");
+      return;
+    }
+    setSubmittedHoldTime(holdTime);
+    alert(`Hold time of ${holdTime} seconds submitted.`);
   };
 
   return (
@@ -94,21 +110,42 @@ function App() {
           </div>
         </div>
 
+        {/* HOLD TIME */}
+        <div className="control-group">
+          <h2>Hold Time</h2>
+          <div className="input-group">
+            <input
+              type="number"
+              id="holdTime"
+              value={holdTime}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "" || (value >= 0 && value <= 9)) {
+                  setHoldTime(value);
+                }
+              }}
+              max="9"
+              placeholder="0-9"
+            />
+            <button onClick={handleHoldTimeSubmit}>Submit</button>
+          </div>
+        </div>
+
         {/* MOTOR */}
         <div className="control-group">
           <h2>BLDC Motor: <span className="current-speed">{motorSpeed || "Off"}</span></h2>
           <div className="button-group">
             <button
-              onClick={() => setMotor("slow")}
-              className={motorSpeed === "slow" ? "active" : ""}
+              onClick={() => sendMotorState("ON")}
+              className={motorSpeed === "ON" ? "active" : ""}
             >
-              Slow
+              ON
             </button>
             <button
-              onClick={() => setMotor("medium")}
-              className={motorSpeed === "medium" ? "active" : ""}
+              onClick={() => sendMotorState("OFF")}
+              className={motorSpeed === "OFF" ? "active" : ""}
             >
-              Medium
+              OFF
             </button>
           </div>
         </div>
