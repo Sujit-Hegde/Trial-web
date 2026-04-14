@@ -13,7 +13,7 @@ app.get("/", (req, res) => {
 let state = {
   power: "OFF",
   servo: "STOP",
-  motor: { power: "OFF", holdTime: 0, maxPulse: 1.35 },
+  motor: { power: "OFF", holdTime: 0, maxPulse: 1.1 },
   lastSeen: Date.now()
 };
 
