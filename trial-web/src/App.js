@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const BASE ="https://trial-web-1.onrender.com" ;
+const BASE ="https://trial-web-1.onrender.com";
 
 function App() {
   const [online, setOnline] = useState(false);
@@ -9,8 +9,14 @@ function App() {
   const [motorSpeed, setMotorSpeed] = useState(null);
   const [servoStatus, setServoStatus] = useState("Unfolded");
 
+  const [maxPulse, setMaxPulse] = useState(1.1);
+
 const [holdTime, setHoldTime] = useState("");
 const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
+
+  const MIN_MAX_PULSE = 1.1;
+  const MAX_MAX_PULSE = 1.5;
+  const STEP_MAX_PULSE = 0.05;
 
   // CHECK STATUS
   useEffect(() => {
@@ -25,6 +31,9 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
         if (isOnline) {
           setPower(data.power);
           setMotorSpeed(data.motor.power);
+          if (data.motor && typeof data.motor.maxPulse === "number") {
+            setMaxPulse(data.motor.maxPulse);
+          }
           // Do not overwrite servoStatus here; it is controlled
           // only by the FOLD / RESET buttons in the UI.
         }
@@ -86,6 +95,48 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
     alert(`Hold time of ${holdTime} seconds submitted.`);
   };
 
+  const handleIncreaseMaxPulse = () => {
+    setMaxPulse((prev) => {
+      const next = Math.min(MAX_MAX_PULSE, (Number(prev) || MIN_MAX_PULSE) + STEP_MAX_PULSE);
+      return Number(next.toFixed(2));
+    });
+  };
+
+  const handleDecreaseMaxPulse = () => {
+    setMaxPulse((prev) => {
+      const next = Math.max(MIN_MAX_PULSE, (Number(prev) || MIN_MAX_PULSE) - STEP_MAX_PULSE);
+      return Number(next.toFixed(2));
+    });
+  };
+
+  const handleMaxPulseSubmit = async () => {
+    const numeric = Number(maxPulse);
+    if (isNaN(numeric)) {
+      alert("Invalid maxPulse value");
+      return;
+    }
+
+    const clamped = Math.min(MAX_MAX_PULSE, Math.max(MIN_MAX_PULSE, numeric));
+    setMaxPulse(clamped);
+
+    try {
+      const res = await fetch(BASE + "/motor/maxPulse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maxPulse: clamped })
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update maxPulse");
+      }
+
+      alert(`Max pulse set to ${clamped.toFixed(2)} ms`);
+    } catch (error) {
+      console.error("Error updating maxPulse:", error);
+      alert("Error updating maxPulse on server");
+    }
+  };
+
   return (
     <div className="container">
       <header className="header">
@@ -122,6 +173,20 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
             <button onClick={foldServo}>FOLD</button>
             <button onClick={resetServo}>RESET</button>
           </div>
+        </div>
+
+        {/* MAX PULSE */}
+        <div className="control-group">
+          <h2>Max Pulse (ms)</h2>
+          <div className="maxpulse-group">
+            <button onClick={handleDecreaseMaxPulse}>-</button>
+            <span className="maxpulse-value">{maxPulse.toFixed(2)}</span>
+            <button onClick={handleIncreaseMaxPulse}>+</button>
+          </div>
+          <div className="button-group" style={{ marginTop: "10px" }}>
+            <button onClick={handleMaxPulseSubmit}>Submit</button>
+          </div>
+          <p className="maxpulse-range">Range: {MIN_MAX_PULSE.toFixed(1)} – {MAX_MAX_PULSE.toFixed(1)}</p>
         </div>
 
         {/* HOLD TIME */}

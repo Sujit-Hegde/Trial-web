@@ -13,7 +13,7 @@ app.get("/", (req, res) => {
 let state = {
   power: "OFF",
   servo: "STOP",
-  motor: { power: "OFF", holdTime: 0 },
+  motor: { power: "OFF", holdTime: 0, maxPulse: 1.35 },
   lastSeen: Date.now()
 };
 
@@ -52,11 +52,30 @@ app.post("/servo", (req, res) => {
 app.post("/motor", (req, res) => {
   const { power, holdTime } = req.body;
   if (["ON", "OFF"].includes(power)) {
-    state.motor = { power, holdTime: parseInt(holdTime) };
+    state.motor = {
+      ...state.motor,
+      power,
+      holdTime: parseInt(holdTime)
+    };
     res.json({ message: "Motor updated" });
   } else {
     res.status(400).json({ message: "Invalid power state" });
   }
+});
+
+// -----------------------------
+// MOTOR MAX PULSE CONTROL
+// -----------------------------
+app.post("/motor/maxPulse", (req, res) => {
+  const { maxPulse } = req.body;
+  const value = parseFloat(maxPulse);
+
+  if (isNaN(value) || value < 1.1 || value > 1.5) {
+    return res.status(400).json({ message: "Invalid maxPulse value" });
+  }
+
+  state.motor.maxPulse = value;
+  res.json({ message: "maxPulse updated" });
 });
 
 // -----------------------------
@@ -76,4 +95,4 @@ app.get("/status", (req, res) => {
   res.json({ online });
 });
 
-app.listen(3000, () => console.log("Server running"));
+app.listen(5000, () => console.log("Server running"));

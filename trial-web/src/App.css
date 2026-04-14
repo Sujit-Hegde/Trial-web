@@ -81,6 +81,28 @@ body {
   gap: 10px;
 }
 
+.maxpulse-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.maxpulse-value {
+  min-width: 70px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  font-weight: bold;
+}
+
+.maxpulse-range {
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: #555;
+}
+
 button {
   padding: 10px 20px;
   font-size: 1em;
