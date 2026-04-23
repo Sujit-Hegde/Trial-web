@@ -273,6 +273,10 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
               <span className="gyro-label">Z</span>
               <span className="gyro-value">{gyro.z.toFixed(2)}</span>
             </div>
+            <div className="gyro-item">
+              <span className="gyro-label">W</span>
+              <span className="gyro-value">{Math.sqrt(gyro.x ** 2 + gyro.y ** 2 + gyro.z ** 2).toFixed(2)}</span>
+            </div>
           </div>
           <p className="gyro-timestamp">
             Last update: {gyro.timestamp ? new Date(gyro.timestamp).toLocaleTimeString() : "No data yet"}
