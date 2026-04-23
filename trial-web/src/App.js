@@ -8,6 +8,8 @@ function App() {
   const [power, setPower] = useState(null);
   const [motorSpeed, setMotorSpeed] = useState(null);
   const [servoStatus, setServoStatus] = useState("Unfolded");
+  const [gyro, setGyro] = useState({ x: 0, y: 0, z: 0, timestamp: null });
+  const [gyroError, setGyroError] = useState(false);
 
   const [maxPulse, setMaxPulse] = useState(1.1);
 
@@ -42,6 +44,32 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
         setOnline(false);
       }
     }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // LIVE GYRO DATA
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(BASE + "/gyro");
+        if (!res.ok) {
+          throw new Error("Failed to fetch gyro");
+        }
+
+        const data = await res.json();
+        setGyro({
+          x: Number(data.x ?? 0),
+          y: Number(data.y ?? 0),
+          z: Number(data.z ?? 0),
+          timestamp: data.timestamp ?? null
+        });
+        setGyroError(false);
+      } catch (error) {
+        console.error("Error fetching gyro:", error);
+        setGyroError(true);
+      }
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -227,6 +255,29 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
               OFF
             </button>
           </div>
+        </div>
+
+        {/* GYRO LIVE DATA */}
+        <div className="control-group gyro-group">
+          <h2>Gyro Live Data</h2>
+          <div className="gyro-grid">
+            <div className="gyro-item">
+              <span className="gyro-label">X</span>
+              <span className="gyro-value">{gyro.x.toFixed(2)}</span>
+            </div>
+            <div className="gyro-item">
+              <span className="gyro-label">Y</span>
+              <span className="gyro-value">{gyro.y.toFixed(2)}</span>
+            </div>
+            <div className="gyro-item">
+              <span className="gyro-label">Z</span>
+              <span className="gyro-value">{gyro.z.toFixed(2)}</span>
+            </div>
+          </div>
+          <p className="gyro-timestamp">
+            Last update: {gyro.timestamp ? new Date(gyro.timestamp).toLocaleTimeString() : "No data yet"}
+          </p>
+          {gyroError && <p className="gyro-error">Unable to fetch gyro data from backend.</p>}
         </div>
       </div>
     </div>

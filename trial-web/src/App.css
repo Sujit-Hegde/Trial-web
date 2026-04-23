@@ -126,3 +126,52 @@ button:active {
 button.active {
   background-color: #28a745;
 }
+
+.gyro-group {
+  text-align: left;
+}
+
+.gyro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gyro-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+.gyro-label {
+  font-size: 0.8em;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.gyro-value {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #0b5ed7;
+}
+
+.gyro-timestamp {
+  margin-top: 12px;
+  margin-bottom: 0;
+  font-size: 0.9em;
+  color: #444;
+  text-align: center;
+}
+
+.gyro-error {
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-size: 0.85em;
+  color: #dc3545;
+  text-align: center;
+}
