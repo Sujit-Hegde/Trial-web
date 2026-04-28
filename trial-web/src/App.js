@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import "./App.css";
 
 const BASE ="https://trial-web-1.onrender.com";
@@ -50,7 +50,7 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isDraggingJoystick]);
 
   const sendPower = (state) => {
     setPower(state);
@@ -105,11 +105,11 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
     return Math.min(MAX_MAX_PULSE, Math.max(MIN_MAX_PULSE, Number(value)));
   };
 
-  const mapPulseToJoystickY = (value) => {
+  const mapPulseToJoystickY = useCallback((value) => {
     const clamped = clampMaxPulse(value);
     const ratio = (clamped - MIN_MAX_PULSE) / (MAX_MAX_PULSE - MIN_MAX_PULSE);
     return (1 - ratio * 2) * JOYSTICK_LIMIT;
-  };
+  }, [MIN_MAX_PULSE, MAX_MAX_PULSE, JOYSTICK_LIMIT]);
 
   const postMaxPulse = async (value, options = {}) => {
     const { silentSuccess = true } = options;
@@ -154,7 +154,7 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
     if (!isDraggingJoystick) {
       setJoystickPos({ x: 0, y: mapPulseToJoystickY(maxPulse) });
     }
-  }, [maxPulse, isDraggingJoystick]);
+  }, [maxPulse, isDraggingJoystick, mapPulseToJoystickY]);
 
   const updateJoystickFromPointer = (event) => {
     const base = joystickRef.current;
