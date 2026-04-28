@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 
 const BASE ="https://trial-web-1.onrender.com";
@@ -8,17 +8,21 @@ function App() {
   const [power, setPower] = useState(null);
   const [motorSpeed, setMotorSpeed] = useState(null);
   const [servoStatus, setServoStatus] = useState("Unfolded");
-  const [gyro, setGyro] = useState({ x: 0, y: 0, z: 0, timestamp: null });
-  const [gyroError, setGyroError] = useState(false);
 
   const [maxPulse, setMaxPulse] = useState(1.1);
+  const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
+  const [isDraggingJoystick, setIsDraggingJoystick] = useState(false);
+  const joystickRef = useRef(null);
+  const lastSentMaxPulseRef = useRef(null);
+  const lastSendAtRef = useRef(0);
 
 const [holdTime, setHoldTime] = useState("");
 const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
 
   const MIN_MAX_PULSE = 1.1;
   const MAX_MAX_PULSE = 1.5;
-  const STEP_MAX_PULSE = 0.05;
+  const JOYSTICK_LIMIT = 40;
+  const MAXPULSE_PUSH_INTERVAL_MS = 120;
 
   // CHECK STATUS
   useEffect(() => {
@@ -33,7 +37,7 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
         if (isOnline) {
           setPower(data.power);
           setMotorSpeed(data.motor.power);
-          if (data.motor && typeof data.motor.maxPulse === "number") {
+          if (!isDraggingJoystick && data.motor && typeof data.motor.maxPulse === "number") {
             setMaxPulse(data.motor.maxPulse);
           }
           // Do not overwrite servoStatus here; it is controlled
@@ -44,32 +48,6 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
         setOnline(false);
       }
     }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // LIVE GYRO DATA
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(BASE + "/gyro");
-        if (!res.ok) {
-          throw new Error("Failed to fetch gyro");
-        }
-
-        const data = await res.json();
-        setGyro({
-          x: Number(data.x ?? 0),
-          y: Number(data.y ?? 0),
-          z: Number(data.z ?? 0),
-          timestamp: data.timestamp ?? null
-        });
-        setGyroError(false);
-      } catch (error) {
-        console.error("Error fetching gyro:", error);
-        setGyroError(true);
-      }
-    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -123,29 +101,31 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
     alert(`Hold time of ${holdTime} seconds submitted.`);
   };
 
-  const handleIncreaseMaxPulse = () => {
-    setMaxPulse((prev) => {
-      const next = Math.min(MAX_MAX_PULSE, (Number(prev) || MIN_MAX_PULSE) + STEP_MAX_PULSE);
-      return Number(next.toFixed(2));
-    });
+  const clampMaxPulse = (value) => {
+    return Math.min(MAX_MAX_PULSE, Math.max(MIN_MAX_PULSE, Number(value)));
   };
 
-  const handleDecreaseMaxPulse = () => {
-    setMaxPulse((prev) => {
-      const next = Math.max(MIN_MAX_PULSE, (Number(prev) || MIN_MAX_PULSE) - STEP_MAX_PULSE);
-      return Number(next.toFixed(2));
-    });
+  const mapPulseToJoystickY = (value) => {
+    const clamped = clampMaxPulse(value);
+    const ratio = (clamped - MIN_MAX_PULSE) / (MAX_MAX_PULSE - MIN_MAX_PULSE);
+    return (1 - ratio * 2) * JOYSTICK_LIMIT;
   };
 
-  const handleMaxPulseSubmit = async () => {
-    const numeric = Number(maxPulse);
+  const postMaxPulse = async (value, options = {}) => {
+    const { silentSuccess = true } = options;
+    const numeric = Number(value);
     if (isNaN(numeric)) {
-      alert("Invalid maxPulse value");
+      if (!silentSuccess) {
+        alert("Invalid maxPulse value");
+      }
       return;
     }
 
-    const clamped = Math.min(MAX_MAX_PULSE, Math.max(MIN_MAX_PULSE, numeric));
+    const clamped = clampMaxPulse(numeric);
     setMaxPulse(clamped);
+
+    lastSentMaxPulseRef.current = clamped;
+    lastSendAtRef.current = Date.now();
 
     try {
       const res = await fetch(BASE + "/motor/maxPulse", {
@@ -158,11 +138,75 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
         throw new Error("Failed to update maxPulse");
       }
 
-      alert(`Max pulse set to ${clamped.toFixed(2)} ms`);
+      if (!silentSuccess) {
+        alert(`Max pulse set to ${clamped.toFixed(2)} ms`);
+      }
     } catch (error) {
       console.error("Error updating maxPulse:", error);
-      alert("Error updating maxPulse on server");
+      lastSentMaxPulseRef.current = null;
+      if (!silentSuccess) {
+        alert("Error updating maxPulse on server");
+      }
     }
+  };
+
+  useEffect(() => {
+    if (!isDraggingJoystick) {
+      setJoystickPos({ x: 0, y: mapPulseToJoystickY(maxPulse) });
+    }
+  }, [maxPulse, isDraggingJoystick]);
+
+  const updateJoystickFromPointer = (event) => {
+    const base = joystickRef.current;
+    if (!base) {
+      return;
+    }
+
+    const rect = base.getBoundingClientRect();
+    const centerY = rect.top + rect.height / 2;
+    const dy = event.clientY - centerY;
+    const constrainedY = Math.max(-JOYSTICK_LIMIT, Math.min(JOYSTICK_LIMIT, dy));
+
+    setJoystickPos({ x: 0, y: constrainedY });
+
+    const normalizedY = Math.max(-1, Math.min(1, -constrainedY / JOYSTICK_LIMIT));
+    const nextPulse = MIN_MAX_PULSE + ((normalizedY + 1) / 2) * (MAX_MAX_PULSE - MIN_MAX_PULSE);
+    const rounded = Number(nextPulse.toFixed(2));
+    setMaxPulse(rounded);
+
+    const now = Date.now();
+    const shouldPush =
+      now - lastSendAtRef.current >= MAXPULSE_PUSH_INTERVAL_MS &&
+      rounded !== lastSentMaxPulseRef.current;
+
+    if (shouldPush) {
+      postMaxPulse(rounded, { silentSuccess: true });
+    }
+  };
+
+  const handleJoystickPointerDown = (event) => {
+    setIsDraggingJoystick(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updateJoystickFromPointer(event);
+  };
+
+  const handleJoystickPointerMove = (event) => {
+    if (!isDraggingJoystick) {
+      return;
+    }
+    updateJoystickFromPointer(event);
+  };
+
+  const handleJoystickPointerUp = (event) => {
+    setIsDraggingJoystick(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    handleMaxPulseSubmit(maxPulse, { silentSuccess: true });
+  };
+
+  const handleMaxPulseSubmit = async (value = maxPulse, options = {}) => {
+    await postMaxPulse(value, options);
   };
 
   return (
@@ -206,11 +250,24 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
         {/* MAX PULSE */}
         <div className="control-group">
           <h2>Max Pulse (ms)</h2>
-          <div className="maxpulse-group">
-            <button onClick={handleDecreaseMaxPulse}>-</button>
-            <span className="maxpulse-value">{maxPulse.toFixed(2)}</span>
-            <button onClick={handleIncreaseMaxPulse}>+</button>
+          <div className="joystick-wrapper">
+            <div
+              ref={joystickRef}
+              className="joystick-base"
+              onPointerDown={handleJoystickPointerDown}
+              onPointerMove={handleJoystickPointerMove}
+              onPointerUp={handleJoystickPointerUp}
+              onPointerCancel={handleJoystickPointerUp}
+            >
+              <div className="joystick-crosshair-x"></div>
+              <div className="joystick-crosshair-y"></div>
+              <div
+                className="joystick-knob"
+                style={{ transform: `translate(${joystickPos.x}px, ${joystickPos.y}px)` }}
+              ></div>
+            </div>
           </div>
+          <p className="maxpulse-value-display">Value: {maxPulse.toFixed(2)} ms</p>
           <div className="button-group" style={{ marginTop: "10px" }}>
             <button onClick={handleMaxPulseSubmit}>Submit</button>
           </div>
@@ -255,33 +312,6 @@ const [submittedHoldTime, setSubmittedHoldTime] = useState(null);
               OFF
             </button>
           </div>
-        </div>
-
-        {/* GYRO LIVE DATA */}
-        <div className="control-group gyro-group">
-          <h2>Gyro Live Data</h2>
-          <div className="gyro-grid">
-            <div className="gyro-item">
-              <span className="gyro-label">X</span>
-              <span className="gyro-value">{gyro.x.toFixed(2)}</span>
-            </div>
-            <div className="gyro-item">
-              <span className="gyro-label">Y</span>
-              <span className="gyro-value">{gyro.y.toFixed(2)}</span>
-            </div>
-            <div className="gyro-item">
-              <span className="gyro-label">Z</span>
-              <span className="gyro-value">{gyro.z.toFixed(2)}</span>
-            </div>
-            <div className="gyro-item">
-              <span className="gyro-label">W</span>
-              <span className="gyro-value">{Math.sqrt(gyro.x ** 2 + gyro.y ** 2 + gyro.z ** 2).toFixed(2)}</span>
-            </div>
-          </div>
-          <p className="gyro-timestamp">
-            Last update: {gyro.timestamp ? new Date(gyro.timestamp).toLocaleTimeString() : "No data yet"}
-          </p>
-          {gyroError && <p className="gyro-error">Unable to fetch gyro data from backend.</p>}
         </div>
       </div>
     </div>

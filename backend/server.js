@@ -17,13 +17,6 @@ let state = {
   lastSeen: Date.now()
 };
 
-let gyroData = {
-  x: 0,
-  y: 0,
-  z: 0,
-  timestamp: null
-};
-
 // -----------------------------
 // PICO FETCH STATE
 // -----------------------------
@@ -100,18 +93,6 @@ app.get("/status", (req, res) => {
   const now = Date.now();
   const online = now - state.lastSeen < 5000;
   res.json({ online });
-});
-
-// -----------------------------
-// GYRO DATA (MICROCONTROLLER)
-// -----------------------------
-app.post("/gyro", (req, res) => {
-  gyroData = { ...req.body, timestamp: Date.now() };
-  res.json({ message: "Gyro updated" });
-});
-
-app.get("/gyro", (req, res) => {
-  res.json(gyroData);
 });
 
 app.listen(5000, () => console.log("Server running"));
